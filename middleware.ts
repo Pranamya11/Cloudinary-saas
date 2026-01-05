@@ -2,6 +2,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 
+
+
 const isPublicRoute = createRouteMatcher([
 
     "/sign-in",
@@ -16,8 +18,8 @@ const isPublicApiRoute = createRouteMatcher([
 
 
 
-export default clerkMiddleware((auth, req) => {
-    const { userId } = auth();
+export default clerkMiddleware(async (auth, req) => {
+    const { userId } = await auth();
     const currentUrl = new URL(req.url);
     const isAccessingDashboard = currentUrl.pathname === "/home";
     const isApiRequest = currentUrl.pathname.startsWith("/api");
