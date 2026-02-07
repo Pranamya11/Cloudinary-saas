@@ -10,8 +10,9 @@ generator client {
 }
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://neondb_owner:npg_opsxJd15OrgQ@ep-divine-meadow-agycvwoa-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+  url      = "postgresql://neondb_owner:npg_54imHcnPlyCa@ep-divine-meadow-agycvwoa-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
 }
+
 
 model Video{
   id          String @id @default(cuid())

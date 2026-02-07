@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
@@ -27,8 +29,14 @@ function VideoUpload() {
         formData.append("originalSize", file.size.toString());
 
         try {
-            await axios.post("/api/video-upload", formData)
-
+            const response = await axios.post("/api/video-upload", formData)
+            console.log("Upload response:", response.data)
+            
+            if (response.status === 200) {
+                router.push(`/videos/${response.data.id}`)
+            } else {
+                alert("Upload failed. Please try again.")
+            }
 
         } catch (error) {
             console.error("Error uploading video:", error)

@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useEffect, useRef } from 'react'
 import { CldImage } from 'next-cloudinary';
 
@@ -24,7 +26,13 @@ export default function SocialShare() {
     if (uploadImage) {
       setIsTransforming(true);
     }
-  }, [selectedFormat, uploadImage])
+  }, [selectedFormat, uploadImage]);
+
+
+  const handleFormatChange = (format: socialFormats) => {
+    setIsTransforming(true);
+    setSelectedFormat(format);
+  };
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,7 +125,7 @@ export default function SocialShare() {
                 return (
                   <button
                     key={format}
-                    onClick={() => setSelectedFormat(formatKey)}
+                    onClick={() => handleFormatChange(formatKey)}
                     className={`p-3 text-left border rounded ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
                   >
                     <div className="font-medium text-sm">{format.split(' (')[0]}</div>
@@ -167,12 +175,16 @@ export default function SocialShare() {
                         width={socialFormats[selectedFormat].width}
                         height={socialFormats[selectedFormat].height}
                         src={uploadImage}
-                        sizes="100vw"
                         alt="Transformed image"
-                        ref={imageRef}
                         className="max-w-full h-auto border rounded"
                         crop="fill"
                         gravity="auto"
+
+                        onLoad={() => setIsTransforming(false)}
+                        onError={() => {
+                          setIsTransforming(false);
+                          alert("Image transform failed");
+                        }}
                       />
                     </div>
                     <p className="text-sm text-gray-500">
