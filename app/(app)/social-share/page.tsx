@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { CldImage } from 'next-cloudinary';
 
 const socialFormats = {
@@ -12,33 +12,25 @@ const socialFormats = {
   "Pinterest Pin (2:3)": { width: 1000, height: 1500, aspectRatio: "2:3" },
 };
 
-type socialFormats = keyof typeof socialFormats;
-
+type SocialFormatKey = keyof typeof socialFormats;
 
 export default function SocialShare() {
   const [uploadImage, setUploadImage] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<socialFormats>("Instagram Square (1:1)");
+  const [selectedFormat, setSelectedFormat] = useState<SocialFormatKey>("Instagram Square (1:1)");
   const [isUploading, setIsUploading] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
-  const imageRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => {
-    if (uploadImage) {
-      setIsTransforming(true);
-    }
-  }, [selectedFormat, uploadImage]);
-
-
-  const handleFormatChange = (format: socialFormats) => {
-    setIsTransforming(true);
+  const handleFormatChange = (format: SocialFormatKey) => {
     setSelectedFormat(format);
   };
-
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    
     setIsUploading(true);
+    setIsTransforming(true);
+    
     const formData = new FormData();
     formData.append("file", file);
 
@@ -46,41 +38,55 @@ export default function SocialShare() {
       const response = await fetch("/api/image-upload", {
         method: "POST",
         body: formData,
-      })
+      });
 
-
-      if (!response.ok) throw new Error("Failed to Upload failed");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
 
       const data = await response.json();
       setUploadImage(data.publicId);
-
+      
     } catch (error) {
-      console.log(error)
-      alert("Failed To Upload Image")
-
+      console.error('Upload error:', error);
+      alert(error instanceof Error ? error.message : "Failed to upload image");
     } finally {
       setIsUploading(false);
+      // Set a timeout to auto-clear transforming state if image fails to load
+      setTimeout(() => {
+        setIsTransforming(false);
+      }, 5000);
     }
   };
 
-  const handelDowload = () => {
-    if (!imageRef.current) return;
+  const handleDownload = async () => {
+    if (!uploadImage) return;
 
-    fetch(imageRef.current.src)
-      .then(response => response.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "image.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
-
-      })
-  }
+    try {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const format = socialFormats[selectedFormat];
+      
+      // Direct Cloudinary URL for download
+      const downloadUrl = `https://res.cloudinary.com/${cloudName}/image/upload/c_fill,w_${format.width},h_${format.height},g_auto/${uploadImage}`;
+      
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `social-media-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert("Download failed");
+    }
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -118,7 +124,7 @@ export default function SocialShare() {
             <h2 className="font-semibold mb-4">Select Format</h2>
             <div className="grid grid-cols-2 gap-2">
               {Object.keys(socialFormats).map((format) => {
-                const formatKey = format as socialFormats;
+                const formatKey = format as SocialFormatKey;
                 const isSelected = selectedFormat === formatKey;
                 const formatData = socialFormats[formatKey];
 
@@ -126,7 +132,8 @@ export default function SocialShare() {
                   <button
                     key={format}
                     onClick={() => handleFormatChange(formatKey)}
-                    className={`p-3 text-left border rounded ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                    className={`p-3 text-left border rounded ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${!uploadImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!uploadImage}
                   >
                     <div className="font-medium text-sm">{format.split(' (')[0]}</div>
                     <div className="text-xs text-gray-500">{formatData.aspectRatio}</div>
@@ -140,7 +147,7 @@ export default function SocialShare() {
           {/* Download Button */}
           <div className="border rounded-lg p-4">
             <button
-              onClick={handelDowload}
+              onClick={handleDownload}
               disabled={!uploadImage || isTransforming}
               className={`w-full py-3 rounded ${uploadImage && !isTransforming ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-200 text-gray-400'}`}
             >
@@ -162,15 +169,15 @@ export default function SocialShare() {
 
           <div className="border rounded bg-gray-50 p-4 min-h-[400px] flex items-center justify-center">
             {uploadImage ? (
-              <div className="text-center">
+              <div className="text-center w-full">
                 {isTransforming ? (
                   <div className="py-8">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    <p className="mt-2 text-gray-600">Applying format...</p>
+                    <p className="mt-2 text-gray-600">Loading image...</p>
                   </div>
                 ) : (
                   <>
-                    <div className="mb-4">
+                    <div className="mb-4 max-w-full overflow-hidden">
                       <CldImage
                         width={socialFormats[selectedFormat].width}
                         height={socialFormats[selectedFormat].height}
@@ -179,16 +186,19 @@ export default function SocialShare() {
                         className="max-w-full h-auto border rounded"
                         crop="fill"
                         gravity="auto"
-
-                        onLoad={() => setIsTransforming(false)}
-                        onError={() => {
+                        onLoad={() => {
+                          console.log("✅ Image loaded");
                           setIsTransforming(false);
-                          alert("Image transform failed");
+                        }}
+                        onError={(e) => {
+                          console.error("❌ Image load error:", e);
+                          setIsTransforming(false);
+                          alert("Failed to load image. Please try again.");
                         }}
                       />
                     </div>
                     <p className="text-sm text-gray-500">
-                      Preview for {selectedFormat}
+                      Preview for {selectedFormat.split(' (')[0]}
                     </p>
                   </>
                 )}
